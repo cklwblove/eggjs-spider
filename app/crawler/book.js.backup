@@ -1,0 +1,79 @@
+'use strict';
+
+const puppeteer = require('puppeteer');
+const mongoose = require('mongoose');
+
+const url = `http://www.mytxt.cc/read/`;
+const sleep = (time) => new Promise((resolve) => {
+  setTimeout(resolve, time);
+});
+
+module.exports = {
+  async taskBook(bookId) {
+    const bookUrl = `${url}${bookId}/`;
+
+    console.log('Start visit the target page --- book', bookUrl);
+
+    let browser = await puppeteer.launch({
+      args: ['--no-sandbox'],
+      dumpio: false
+    }).catch(err => {
+      console.log('browser--error', bookUrl);
+      browser.close;
+    });
+
+    // console.log('book:', browser);
+    const page = await browser.newPage();
+
+    await page.goto(bookUrl, {
+      waitUntil: 'networkidle2',
+      timeout: 3000000
+    });
+    // console.log('crawler -> book --> page', page);
+    await sleep(3000);
+
+    await page.waitForSelector('.story_info_m62topxs');
+
+    let result = await page.evaluate(() => {
+      return {
+        headImg: document.querySelector('.story_cover_m62topxs img').getAttribute('src'),
+        name: document.querySelector('.info_left_m62topxs h1').innerText,
+        author: document.querySelector('.info_left_m62topxs h2 a').innerText,
+        chapterNum: document.querySelectorAll('.cp_dd_m62topxs').length
+      }
+    });
+    console.log('crawler --> book ---> result', result);
+
+    result = {
+      ...result,
+      bookId
+    };
+
+    //保存数据库
+    await saveBook(result);
+
+    browser.close();
+  }
+}
+
+async function saveBook(result) {
+  const Book = mongoose.model('Book');
+  const oneBook = await Book.findOne({
+    bookId
+  });
+
+  const newBook = new Book(result);
+
+  if (oneBook) {
+    if (oneBook.chapterNum != newBook.chapterNum) {
+      Book.updateOne({
+        bookId: result.bookId
+      }, {
+        chapterNum: result.chapterNum
+      });
+    } else {
+      await newBook.save();
+    }
+  }
+
+}
