@@ -1,6 +1,11 @@
 # spider
 
-spider
+利用 eggjs 重构一个爬虫项目
+
+## 涉及的技术点
+- MongoDB
+- 定时任务
+- puppeteer
 
 ## QuickStart
 
